@@ -8,6 +8,15 @@ module BiomineOE
   CLIENT_CHARACTER_SET = 'UTF-8'
 
   class ClientConnection < AbstractConnection
+    def initialize
+      self.comm_inactivity_timeout = 10
+    end
+
+    def connection_completed
+      log 'Connected'
+      self.comm_inactivity_timeout = 0
+    end
+
     # Called by event machine on disconnect
     def unbind
       log 'Disconnected'
@@ -63,6 +72,10 @@ module BiomineOE
       @server = server
     end
 
+    def unbind
+      @server.close_connection_after_writing
+    end
+
     def receive_line(line)
       line.strip!
       return if line.empty?
@@ -75,7 +88,6 @@ module BiomineOE
                'size' => line.bytesize,
                'sha1' => BiomineOE::sha1(line)
       }.to_json
-      puts "Sending with metadata: #{json}"
       @server.send_data(json)
       @server.send_data("\0")
       @server.send_data(line)
