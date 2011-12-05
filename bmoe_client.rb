@@ -54,9 +54,9 @@ module BiomineOE
 
         # Recode to UTF-8
         begin
-          payload = payload.encode 'UTF-8'
+          payload = payload.encode TERMINAL_CHARACTER_SET
         rescue Exception => e
-          log "Encoding to UTF-8 failed: #{e}"
+          log "Encoding to #{TERMINAL_CHARACTER_SET} failed: #{e}"
           return
         end
       end
