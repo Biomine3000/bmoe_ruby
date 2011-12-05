@@ -15,7 +15,7 @@ require 'socket'
 #
 # If the metadata contains the key "sha1", the value of that key is
 # compared against the SHA1 hexdigest checksum of the payload (only,
-# not including the leading NUL or metadata).o
+# not including the leading NUL or metadata).
 
 module BiomineOE
 
