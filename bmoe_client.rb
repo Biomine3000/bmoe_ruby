@@ -81,7 +81,11 @@ module BiomineOE
 
     def receive_line(line)
       line.strip!
-      return if line.empty?
+      #return if line.empty?
+      if line == '/quit'
+        @server.close_connection_after_writing
+        return
+      end
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
       if line.respond_to? :force_encoding
         line.force_encoding TERMINAL_CHARACTER_SET

@@ -42,23 +42,7 @@ module BiomineOE
     def receive_data(data)
       while not (data.nil? or data.empty?)
         data.force_encoding 'BINARY' if data.respond_to? :force_encoding
-        if @payload_bytes_to_read
-          if data.size >= @payload_bytes_to_read
-            @buffer << data.slice!(0, @payload_bytes_to_read)
-            payload = @buffer.join('')
-            @buffer, @payload_bytes_to_read = [], nil
-            begin
-              receive_payload(payload)
-            rescue Exception => e
-              log "Invalid payload: #{e}"
-              close_connection
-            end
-          else
-            @buffer << data
-            @payload_bytes_to_read -= data.size
-            data = nil
-          end
-        else
+        unless @payload_bytes_to_read
           nul = data.index ?\0
           if nul
             @buffer << data.slice!(0, nul)
@@ -70,9 +54,28 @@ module BiomineOE
             rescue Exception => e
               log "Invalid metadata: #{e}"
               close_connection
+              return
             end
           else
             @buffer << data
+            data = nil
+          end
+        end
+        if @payload_bytes_to_read
+          if data.size >= @payload_bytes_to_read
+            @buffer << data.slice!(0, @payload_bytes_to_read)
+            payload = @buffer.join('')
+            @buffer, @payload_bytes_to_read = [], nil
+            begin
+              receive_payload(payload)
+            rescue Exception => e
+              log "Invalid payload: #{e}"
+              close_connection
+              return
+            end
+          else
+            @buffer << data
+            @payload_bytes_to_read -= data.size
             data = nil
           end
         end
