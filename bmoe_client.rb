@@ -9,12 +9,12 @@ module BiomineOE
 
   class ClientConnection < AbstractConnection
     def initialize
-      self.comm_inactivity_timeout = 10
+      #self.comm_inactivity_timeout = 10
     end
 
     def connection_completed
       log 'Connected'
-      self.comm_inactivity_timeout = 0
+      #self.comm_inactivity_timeout = 0
     end
 
     # Called by event machine on disconnect
@@ -67,12 +67,15 @@ module BiomineOE
 
   class KeyboardInput < EventMachine::Connection
     include EventMachine::Protocols::LineText2
+    attr_reader :name
 
     def initialize(server)
       @server = server
+      @name = 'kb'
     end
 
     def unbind
+      BiomineOE.log(self, 'Closing')
       @server.close_connection_after_writing
     end
 

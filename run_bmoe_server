@@ -4,6 +4,7 @@ require 'bmoe_server'
 
 port = (ARGV[0] || 7890).to_i
 
+EventMachine.epoll
 EventMachine.run do
   server = BiomineOE::Server.new
   server.start('0.0.0.0', port)
