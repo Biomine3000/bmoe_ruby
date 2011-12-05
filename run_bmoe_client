@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << '.' unless $LOAD_PATH.include? '.'
+require 'bmoe_client'
+
+server = ARGV[0] || '127.0.0.1'
+port = (ARGV[1] || 7890).to_i
+
+EventMachine.run do
+  c = EventMachine.connect(server, port, BiomineOE::ClientConnection)
+  if c
+    EventMachine.open_keyboard(BiomineOE::KeyboardInput, c)
+  else
+    EventMachine.stop
+  end
+end

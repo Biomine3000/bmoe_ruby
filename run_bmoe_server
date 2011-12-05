@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << '.' unless $LOAD_PATH.include? '.'
+require 'bmoe_server'
+
+port = (ARGV[0] || 7890).to_i
+
+EventMachine.run do
+  server = BiomineOE::Server.new
+  server.start('0.0.0.0', port)
+end
