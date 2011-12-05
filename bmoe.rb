@@ -1,3 +1,8 @@
+# Biomine Object Exchange
+#
+# TODO: Set a maximum size for the receive buffer (and thus object)
+# TODO: Do JSON parsing and/or SHA-1 and/or join in the background (if large?)
+
 require 'rubygems'
 require 'json'
 require 'eventmachine'
