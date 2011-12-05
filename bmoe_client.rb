@@ -85,7 +85,7 @@ module BiomineOE
         line.encode CLIENT_CHARACTER_SET
       end
       json = { 'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
-               'size' => line.bytesize,
+               'size' => line.respond_to?(:bytesize) ? line.bytesize : line.size,
                'sha1' => BiomineOE::sha1(line)
       }.to_json
       @server.send_data(json)
