@@ -89,7 +89,7 @@ module BiomineOE
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
       if line.respond_to? :force_encoding
         line.force_encoding TERMINAL_CHARACTER_SET
-        line.encode CLIENT_CHARACTER_SET
+        line = line.encode CLIENT_CHARACTER_SET
       end
       json = { 'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
                'size' => line.respond_to?(:bytesize) ? line.bytesize : line.size,
