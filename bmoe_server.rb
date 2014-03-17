@@ -161,7 +161,7 @@ module BiomineOE
     def message_subscribed?(msg, subscriptions)
       pass = false
       subscriptions.each do |rule|
-        if rule.respond_to? :each
+        if rule.respond_to?(:each)
           # nested arrays short-circuit on match
           return true if message_subscribed?(msg, rule)
           next
@@ -171,7 +171,7 @@ module BiomineOE
         rule = rule[1..-1] if is_negative_rule
         if rule.start_with? '#'
           natures = msg['natures']
-          if natures.respond_to? :each
+          if natures.respond_to?(:each)
             rule = rule[1..-1]
             natures.each do |nature|
               if rule.abboe_wildcard_matches?(nature)
@@ -189,7 +189,6 @@ module BiomineOE
           type = (msg['type'].to_s)[/^[^ ;]*/]
           pass = !is_negative_rule if rule.abboe_wildcard_matches?(type)
         end
-        puts "Rule #{rule}: #{pass}"
       end
       pass
     end
