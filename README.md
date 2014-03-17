@@ -23,9 +23,12 @@ Server features:
 * can add all route destinations to `route` before routing (but
   currently disabled since other servers discard objects that have themselves in `route`)
 * incoming and outgoing server-to-server connections
+* automatically reconnect outgoing servers
 * generates object ids and routing ids as UUIDs (subject to change)
 * sends `routing/subscribe/notification` and `routing/disconnect`
 * sends `routing/announcement/neighbors` periodically (only if routing or recipients are believed to have changed)
+* sends `ping` periodically when idle
+* responds to `ping`
 
 Client features:
 
