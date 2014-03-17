@@ -163,6 +163,7 @@ module BiomineOE
       c.send_object(subscribe)
     end
 
+    # Send a neighbor announcement to connected servers
     def send_routing_announcement
       neighbors = []
       @connections.each { |c| neighbors << c.routing_id if c.subscriptions }
