@@ -29,7 +29,7 @@ module BiomineOE
 
     def receive_object(metadata, payload)
       mimetype = metadata['type'].to_s
-      log "Received \"#{mimetype}\" (#{payload.size} bytes)"
+      output "# #{metadata}#{payload ? "(#{payload.size} bytes payload)" : ''}\n"
       return unless mimetype =~ /^text\//
 
       # Character set conversion in Ruby 1.9+
@@ -62,7 +62,7 @@ module BiomineOE
         end
       end
 
-      output "Message text: #{payload}\n"
+      output "#{metadata['routing-id']}> #{payload}\n"
     end
   end
 

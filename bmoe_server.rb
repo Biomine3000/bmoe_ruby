@@ -44,6 +44,8 @@ module BiomineOE
       end
       from = from.respond_to?(:routing_id) ? from.routing_id : from.to_s
 
+      metadata['routing-id'] ||= from if from
+
       # add ourselves and the immediately connected client to the route
       route = metadata['route']
       if route.kind_of? Array
@@ -52,33 +54,35 @@ module BiomineOE
       else
         route = from ? [ @routing_id, from ] : [ @routing_id ]
       end
-      metadata['route'] = route
 
       to = metadata['to']
       to = (to.kind_of?(String) ? [ to ] : nil) unless to.kind_of?(Array)
 
-      recipient_count, sent_count = 0, 0
+      targets = []
+      recipient_count = 0
       @connections.each do |c|
         rid = c.routing_id
         next if to && !to.include?(rid)
         recipient_count += 1
         next if route.include?(rid)
         if c.subscribed_to?(metadata, payload)
-          c.send_object(metadata, payload)
-          sent_count += 1
+          targets << c
         end
       end
       if to && recipient_count < to.size
         # forward object to other servers if there were unreached recipients
         @connections.each do |c|
+          servers = []
           if c.server? && !route.include?(c.routing_id) &&
              c.subscribed_to?(metadata, payload)
-            c.send_object(metadata, payload)
-            sent_count += 1
+            targets << c
           end
         end
       end
-      sent_count
+      route += targets.collect { |c| c.routing_id }
+      metadata['route'] = route
+      json = metadata.to_json
+      targets.each { |c| c.send_object(json, payload) }
     end
 
     def routing_subscribe(client, metadata)
@@ -98,8 +102,8 @@ module BiomineOE
     end
 
     def receive_object(client, metadata, payload)
-      route = metadata['route']
-      return if route.respond_to?(:include?) && route.include?(@routing_id)
+      #route = metadata['route']
+      #return if route.respond_to?(:include?) && route.include?(@routing_id)
       event = metadata['event']
       if event
         log "Received event \"#{event}\" from #{client.name}"
