@@ -99,8 +99,10 @@ module BiomineOE
           end
         end
       end
+      targets.uniq!
       targets.each do |c|
-        route << c.routing_id if c.server?
+        rid = c.routing_id
+        route << rid if c.server? || (to && to.include?(rid))
       end
       #metadata['route'] = route
       targets.each do |target|
