@@ -9,14 +9,14 @@ module BiomineOE
 
     # Start listening
     def start(ip, port)
+      @outgoing_server_links = {}
       @connections = []
       @routing_id = BiomineOE.routing_id_for(self)
       @name = "#{ip}:#{port}"
       log 'Starting'
       @em = EventMachine.start_server(ip, port, NetworkNode) do |c|
         @connections << c
-        c.connected(self)
-        send_routing_announcement
+        c.init_link(self)
       end
       EventMachine.add_periodic_timer(290) do
         if @routing_changed
@@ -56,11 +56,11 @@ module BiomineOE
     def connect_to_server(ip, port)
       log "Linking with server #{ip}:#{port}"
       EventMachine.connect(ip, port, NetworkNode) do |c|
+        @outgoing_server_links[c] = [ ip, port ]
         @connections << c
         c.role = :server
         c.name = "SERVER[#{ip}:#{port}]"
-        c.connected(self)
-        send_server_subscription(c)
+        c.init_link(self)
       end
     end
 
@@ -211,6 +211,7 @@ module BiomineOE
             return route_object(metadata, payload, client, true)
           end
         when 'ping'
+          client.log "#{event}: #{metadata}"
           pong = { 'event' => 'pong', 'routing-id' => @routing_id }
           oid = metadata['id']
           pong['in-reply-to'] = oid if oid
@@ -222,7 +223,6 @@ module BiomineOE
             return client.send_object(pong)
           end
         when 'pong', 'ping/pong', 'ping/reply'
-          client.log "#{event}: #{metadata}"
           return
         else
           if client.server?
@@ -235,6 +235,15 @@ module BiomineOE
       route_object(metadata, payload, client)
     end
 
+    # Called by client on connect
+    def connected(client)
+      if @outgoing_server_links[client]
+        send_server_subscription(client)
+      else
+        send_routing_announcement
+      end
+    end
+
     # Called by client on disconnect
     def disconnected(client)
       @connections.delete(client)
@@ -242,6 +251,13 @@ module BiomineOE
         notification = { 'event' => 'routing/disconnect' }
         route_object(notification, nil, client)
         @routing_changed = true
+      end
+      linked_server = @outgoing_server_links.delete(client)
+      if linked_server.kind_of?(Array) && linked_server.size == 2
+        EventMachine.add_timer(3) do
+          log "Reconnecting to #{linked_server.join(':')}..."
+          connect_to_server(*linked_server)
+        end
       end
     end
 
@@ -258,10 +274,15 @@ module BiomineOE
   class NetworkNode < AbstractConnection
     attr_accessor :subscriptions
 
-    # Called by server on connect
-    def connected(server)
-      @server = server
+    # Called by event machine on connect
+    def connection_completed
       log 'Connected'
+      @server.connected(self) if @server
+    end
+
+    # Called by server to set up
+    def init_link(server)
+      @server = server
     end
 
     # Called by event machine on disconnect
