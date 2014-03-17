@@ -142,6 +142,10 @@ module BiomineOE
     # Called by client on disconnect
     def disconnected(client)
       @connections.delete(client)
+      if client.subscriptions
+        notification = { 'event' => 'routing/disconnect' }
+        route_object(notification, nil, client)
+      end
     end
 
     private
