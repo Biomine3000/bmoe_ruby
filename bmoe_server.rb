@@ -55,7 +55,7 @@ module BiomineOE
       metadata['route'] = route
 
       to = metadata['to']
-      to = (to.kind_of?(String) ? [ to ] : nil) unless to.respond_to?(:include?)
+      to = (to.kind_of?(String) ? [ to ] : nil) unless to.kind_of?(Array)
 
       recipient_count, sent_count = 0, 0
       @connections.each do |c|
