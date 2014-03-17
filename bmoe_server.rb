@@ -17,6 +17,7 @@ module BiomineOE
       @em = EventMachine.start_server(ip, port, NetworkNode) do |c|
         @connections << c
         c.init_link(self)
+        c.connection_completed
       end
       EventMachine.add_periodic_timer(290) do
         if @routing_changed
@@ -57,7 +58,6 @@ module BiomineOE
       log "Linking with server #{ip}:#{port}"
       EventMachine.connect(ip, port, NetworkNode) do |c|
         @outgoing_server_links[c] = [ ip, port ]
-        @connections << c
         c.role = :server
         c.name = "SERVER[#{ip}:#{port}]"
         c.init_link(self)
@@ -235,13 +235,23 @@ module BiomineOE
       route_object(metadata, payload, client)
     end
 
+    def log_connections_count
+      count = @connections.count
+      sc = 0
+      @connections.each { |c| sc += 1 if c.server? }
+      sc = (sc > 0) ? " (#{sc} server#{(sc==1)?'':'s'})" : ''
+      log "#{count} connection#{(count==1)?'':'s'} on server#{sc}"
+    end
+
     # Called by client on connect
     def connected(client)
       if @outgoing_server_links[client]
+        @connections << client unless @connections.include? client
         send_server_subscription(client)
       else
         send_routing_announcement
       end
+      log_connections_count
     end
 
     # Called by client on disconnect
@@ -253,6 +263,7 @@ module BiomineOE
         @routing_changed = true
       end
       linked_server = @outgoing_server_links.delete(client)
+      log_connections_count
       if linked_server.kind_of?(Array) && linked_server.size == 2
         EventMachine.add_timer(3) do
           log "Reconnecting to #{linked_server.join(':')}..."
