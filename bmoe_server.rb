@@ -35,7 +35,7 @@ module BiomineOE
       end
     end
 
-    def route_object(metadata, payload, from = nil)
+    def route_object(metadata, payload = nil, from = nil)
       # ensure every object has an id
       oid = metadata['id']
       unless oid.kind_of?(String) && !oid.empty?
@@ -88,6 +88,7 @@ module BiomineOE
     end
 
     def routing_subscribe(client, metadata)
+      subscription_created = client.subscriptions.nil?
       client.role = CONNECTION_ROLES[metadata['role']]
       client.subscriptions = metadata['subscriptions']
       rid = metadata['routing-id']
@@ -101,6 +102,24 @@ module BiomineOE
       username = metadata['user']
       client.username = username if username.kind_of?(String) && !username.empty?
       log "\"#{client.name}\" subscriptions: #{client.subscriptions}"
+
+      # reply to subscription
+      reply = { 'event' => 'routing/subscribe/reply',
+                'routing-id' => client.routing_id }
+      oid = metadata['id']
+      reply['in-reply-to'] = oid if oid
+      role = client.role
+      reply['role'] = role if role && role != :client
+      client.send_object(reply)
+
+      # notify others (why?)
+      if subscription_created
+        notification = { 'event' => 'routing/subscribe/notification',
+                         'routing-id' => client.routing_id,
+                         'route' => [ client.routing_id, @routing_id ] }
+        route_object(notification)
+      end
+      reply
     end
 
     def receive_object(client, metadata, payload)
