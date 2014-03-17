@@ -3,7 +3,7 @@ bmoe_ruby
 
 Biomine Object Exchange implemented in Ruby.
 
-Required gems: `json`, `EventMachine`
+Required gems: `json`, `eventmachine`
 
 Usage:
 
