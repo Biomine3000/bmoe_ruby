@@ -26,3 +26,12 @@ Server features:
 * generates object ids and routing ids as UUIDs (subject to change)
 * sends `routing/subscribe/notification` and `routing/disconnect`
 * sends `routing/announcement/neighbors` periodically (only if routing or recipients are believed to have changed)
+
+Client features:
+
+* verbose debug output
+* send `text/plain` messages from terminal with `message` nature
+* use the command `/subscribe *` to establish subscriptions
+  (multiple subscription rules can be given as space-separated strings)
+* support `/quit`
+

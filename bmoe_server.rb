@@ -86,7 +86,7 @@ module BiomineOE
         next if to && !to.include?(rid)
         recipient_count += 1
         next if route.include?(rid)
-        #next if servers_only && !c.server?
+        next if servers_only && !c.server?
         if c.subscribed_to?(metadata, payload)
           targets << c
         end
