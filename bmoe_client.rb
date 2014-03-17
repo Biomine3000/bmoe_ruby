@@ -111,7 +111,8 @@ module BiomineOE
         line = line.encode CLIENT_CHARACTER_SET
       end
       metadata = {
-        'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}"
+        'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
+        'natures' => [ 'message' ]
       }
       send_object(metadata, line)
     end

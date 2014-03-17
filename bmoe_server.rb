@@ -35,6 +35,20 @@ module BiomineOE
       end
     end
 
+    # Connect to another server
+    def connect_to_server(ip, port)
+      log "Linking with server #{ip}:#{port}"
+      EventMachine.connect(ip, port, ConnectionOnServer) do |c|
+        @connections << c
+        c.role = :server
+        c.name = "SERVER[#{ip}:#{port}]"
+        c.connected(self)
+        c.legacy_routing = true
+        send_server_subscription(c)
+      end
+    end
+
+    # Route an object
     def route_object(metadata, payload = nil, from = nil)
       # ensure every object has an id
       oid = metadata['id']
@@ -80,16 +94,18 @@ module BiomineOE
         end
       end
       targets.each do |c|
-        route << c.routing_id if c.server?
+        route << c.routing_id if c.server? && !c.legacy_routing?
       end
       metadata['route'] = route
       json = metadata.to_json
       targets.each { |c| c.send_object(json, payload) }
     end
 
+    # Handle a routing/subscribe event
     def routing_subscribe(client, metadata)
       subscription_created = client.subscriptions.nil?
-      client.role = CONNECTION_ROLES[metadata['role']]
+      was_server = client.server?
+      client.role = CONNECTION_ROLES[metadata['role']] unless was_server
       client.subscriptions = metadata['subscriptions']
       rid = metadata['routing-id']
       client.routing_id = rid if rid.kind_of?(String) && !rid.empty?
@@ -112,6 +128,9 @@ module BiomineOE
       reply['role'] = role if role && role != :client
       client.send_object(reply)
 
+      # subscribe back to a server that has connected to us
+      send_server_subscription(client) if client.server? && !was_server
+
       # notify others (why?)
       if subscription_created
         notification = { 'event' => 'routing/subscribe/notification',
@@ -122,16 +141,39 @@ module BiomineOE
       reply
     end
 
+    # Send a subscription (to another server)
+    def send_server_subscription(c)
+      log "Subscribing to #{c.name}"
+      subscribe = { 'event' => 'routing/subscribe',
+                    'role' => 'server',
+                    'subscriptions' => [ '*' ],
+                    'routing-id' => @routing_id,
+                    'route' => [ @routing_id ] }
+      subscribe['id'] = BiomineOE.object_id_for(subscribe)
+      c.send_object(subscribe)
+    end
+
+
+    # Called when an object is received
     def receive_object(client, metadata, payload)
       #route = metadata['route']
       #return if route.respond_to?(:include?) && route.include?(@routing_id)
       event = metadata['event']
       if event
-        log "Received event \"#{event}\" from #{client.name}"
         case event
         when 'routing/subscribe'
           return routing_subscribe(client, metadata)
+        when 'routing/subscribe/reply'
+          if client.server?
+            log "#{event}: #{metadata}"
+            return
+          end
+        when 'routing/subscribe/notification'
+          log "#{event}: #{metadata}"
         else
+          if client.server?
+            log "Received event \"#{event}\" from #{client.name}:\n\t#{metadata}"
+          end
         end
       else
         log "Received \"#{metadata['type'].to_s}\" (#{payload.size} bytes) from #{client.name}"
@@ -156,6 +198,7 @@ module BiomineOE
 
   class ConnectionOnServer < AbstractConnection
     attr_accessor :subscriptions
+    attr_accessor :legacy_routing
 
     # Called by server on connect
     def connected(server)
@@ -184,6 +227,10 @@ module BiomineOE
         @routing_id = BiomineOE.routing_id_for(self)
       end
       @routing_id
+    end
+
+    def legacy_routing?
+      @legacy_routing ? true : false
     end
 
     private

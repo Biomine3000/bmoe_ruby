@@ -165,7 +165,7 @@ module BiomineOE
     SecureRandom.uuid
   end
 
-  def BiomineOE.object_id_for(metadata, payload)
+  def BiomineOE.object_id_for(metadata, payloadi = nil)
     SecureRandom.uuid
   end
 
