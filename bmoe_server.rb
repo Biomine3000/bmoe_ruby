@@ -49,10 +49,10 @@ module BiomineOE
       # add ourselves and the immediately connected client to the route
       route = metadata['route']
       if route.kind_of? Array
-        route << @routing_id
-        route << from unless from.empty?
+        route << from unless from.empty? || route.include?(from)
+        route << @routing_id unless route.include?(@routing_id)
       else
-        route = from ? [ @routing_id, from ] : [ @routing_id ]
+        route = from ? [ from, @routing_id ] : [ @routing_id ]
       end
 
       to = metadata['to']
@@ -79,7 +79,9 @@ module BiomineOE
           end
         end
       end
-      route += targets.collect { |c| c.routing_id }
+      targets.each do |c|
+        route << c.routing_id if c.server?
+      end
       metadata['route'] = route
       json = metadata.to_json
       targets.each { |c| c.send_object(json, payload) }
