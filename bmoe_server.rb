@@ -50,7 +50,6 @@ module BiomineOE
         c.role = :server
         c.name = "SERVER[#{ip}:#{port}]"
         c.connected(self)
-        c.legacy_routing = true
         send_server_subscription(c)
       end
     end
@@ -101,11 +100,14 @@ module BiomineOE
         end
       end
       targets.each do |c|
-        route << c.routing_id if c.server? && !c.legacy_routing?
+        route << c.routing_id if c.server?
       end
-      metadata['route'] = route
-      json = metadata.to_json
-      targets.each { |c| c.send_object(json, payload) }
+      #metadata['route'] = route
+      targets.each do |target|
+        # FIXME: The following line is only for legacy server compatibility:
+        metadata['route'] = route - [ target.routing_id ]
+        target.send_object(metadata, payload)
+      end
       #log "Routed: #{json}\n\t-> #{targets.collect { |t| t.to_s }}"
       targets
     end
@@ -229,7 +231,6 @@ module BiomineOE
 
   class NetworkNode < AbstractConnection
     attr_accessor :subscriptions
-    attr_accessor :legacy_routing
 
     # Called by server on connect
     def connected(server)
@@ -258,10 +259,6 @@ module BiomineOE
         @routing_id = BiomineOE.routing_id_for(self)
       end
       @routing_id
-    end
-
-    def legacy_routing?
-      @legacy_routing ? true : false
     end
 
     private
