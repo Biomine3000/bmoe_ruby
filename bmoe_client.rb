@@ -27,7 +27,8 @@ module BiomineOE
       puts msg
     end
 
-    def receive_object(mimetype, payload, metadata)
+    def receive_object(metadata, payload)
+      mimetype = metadata['type'].to_s
       log "Received \"#{mimetype}\" (#{payload.size} bytes)"
       return unless mimetype =~ /^text\//
 
@@ -66,38 +67,53 @@ module BiomineOE
   end
 
   class KeyboardInput < EventMachine::Connection
+    include BiomineOE::NetworkNode
     include EventMachine::Protocols::LineText2
-    attr_reader :name
 
     def initialize(server)
       @server = server
-      @name = 'kb'
+      @name = 'keyboard'
     end
 
     def unbind
-      BiomineOE.log(self, 'Closing')
+      notice('Closing connection')
       @server.close_connection_after_writing
+    end
+
+    def notice(msg)
+      puts "# #{msg}"
+    end
+
+    def send_data(data)
+      @server.send_data(data)
     end
 
     def receive_line(line)
       line.strip!
       #return if line.empty?
-      if line == '/quit'
+      field = line[/^\S+/]
+      case field
+      when '/quit'
         @server.close_connection_after_writing
         return
+      when '/subscribe'
+        line.gsub!(',', ' ')
+        metadata = { 'event' => 'routing/subscribe',
+                     'subscriptions' => line.split[1..-1] }
+        json = send_object(metadata)
+        notice json
+        return
+      else
       end
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
       if line.respond_to? :force_encoding
         line.force_encoding TERMINAL_CHARACTER_SET
         line = line.encode CLIENT_CHARACTER_SET
       end
-      json = { 'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
-               'size' => line.respond_to?(:bytesize) ? line.bytesize : line.size,
-               'sha1' => BiomineOE::sha1(line)
-      }.to_json
-      @server.send_data(json)
-      @server.send_data("\0")
-      @server.send_data(line)
+      metadata = {
+        'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}"
+      }
+      send_object(metadata, line)
     end
   end
 

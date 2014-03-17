@@ -1,13 +1,11 @@
 # Biomine Object Exchange
-#
-# TODO: Set a maximum size for the receive buffer (and thus object)
-# TODO: Do JSON parsing and/or SHA-1 and/or join in the background (if large?)
 
 require 'rubygems'
 require 'json'
 require 'eventmachine'
 require 'digest/sha1'
 require 'socket'
+require 'securerandom'
 
 #   Message Format
 #
@@ -17,15 +15,54 @@ require 'socket'
 #
 # The JSON metadata MUST contain at least the keys "size" and "type" to
 # specify the length (in bytes) and type (mime) of the payload to follow.
-#
-# If the metadata contains the key "sha1", the value of that key is
-# compared against the SHA1 hexdigest checksum of the payload (only,
-# not including the leading NUL or metadata).
 
 module BiomineOE
 
+  CONNECTION_ROLES = {
+    'server' => :server,
+    'client' => :client,
+    'service' => :service
+  }
+
+  module NetworkNode
+    attr_accessor :name
+    attr_accessor :routing_id
+    attr_accessor :role
+    attr_accessor :username
+
+    # Return true for servers
+    def server?
+      @role == :server
+    end
+
+    # Called when an object has been received
+    def receive_object(metadata, payload)
+    end
+
+    # Send an object
+    def send_object(metadata, payload = nil)
+      if metadata.kind_of?(Hash)
+        if payload.respond_to?(:size)
+          metadata['size'] = payload.respond_to?(:bytesize) ? payload.bytesize : payload.size
+        else
+          metadata.delete('size')
+          payload = nil
+        end
+        metadata = metadata.to_json
+      end
+      send_data(metadata)
+      send_data("\0")
+      send_data(payload) if payload
+      metadata
+    end
+
+    def log(msg)
+      BiomineOE.log self, msg
+    end
+  end
+
   class AbstractConnection < EventMachine::Connection
-    attr_reader :name
+    include NetworkNode
 
     # Called by event machine on connect
     def post_init
@@ -41,7 +78,7 @@ module BiomineOE
     # Called by event machine on data input
     def receive_data(data)
       while not (data.nil? or data.empty?)
-        data.force_encoding 'BINARY' if data.respond_to? :force_encoding
+        data.force_encoding 'BINARY' if data.respond_to?(:force_encoding)
         unless @payload_bytes_to_read
           nul = data.index ?\0
           if nul
@@ -52,7 +89,7 @@ module BiomineOE
             begin
               receive_metadata(metadata)
             rescue Exception => e
-              log "Invalid metadata: #{e}"
+              log_exception(e, 'Invalid metadata', metadata)
               close_connection
               return
             end
@@ -69,7 +106,7 @@ module BiomineOE
             begin
               receive_payload(payload)
             rescue Exception => e
-              log "Invalid payload: #{e}"
+              log_exception(e, 'Invalid payload')
               close_connection
               return
             end
@@ -82,27 +119,24 @@ module BiomineOE
       end
     end
 
-    # Called when an object has been received
-    def receive_object(mimetype, payload, metadata)
+    private
+    def log_exception(e, msg = nil, obj = nil)
+      bt = e.backtrace.clone
+      bt << obj.inspect if obj
+      log "#{msg}#{msg ? ':' : ''} #{e}\n\t#{e.backtrace.join("\n\t")}"
     end
 
-    private
     def receive_payload(payload)
-      checksum = @metadata['sha1'].to_s
-      unless checksum.empty?
-        if BiomineOE.sha1(payload) != checksum
-          log 'Checksum mismatch for payload'
-          close_connection
-          return
-        end
+      begin
+        receive_object(@metadata, payload)
+      rescue Exception => e
+        log_exception(e, 'Error receiving object', @metadata)
       end
-      mimetype = (@metadata['type'] || @metadata['mimetype']).to_s
-      receive_object(mimetype, payload, @metadata)
       @metadata = nil
     end
 
     def receive_metadata(metadata)
-      if metadata.respond_to? :force_encoding
+      if metadata.respond_to?(:force_encoding)
         metadata.force_encoding "UTF-8"
         unless metadata.valid_encoding?
           log 'Metadata not valid UTF-8'
@@ -113,12 +147,8 @@ module BiomineOE
         @metadata = JSON.parse(metadata)
         @payload_bytes_to_read = @metadata['size'].to_i
       rescue Exception => e
-        log "Metadata not valid JSON: #{e}"
+        log_exception(e, 'Metadata not valid JSON', metadata)
       end
-    end
-
-    def log(msg)
-      BiomineOE.log self, msg
     end
   end
 
@@ -127,8 +157,32 @@ module BiomineOE
   end
 
   def BiomineOE.log(sender, msg)
-    name = (sender.respond_to? :name) ? sender.name.to_s : ''
+    name = sender.respond_to?(:name) ? sender.name.to_s : ''
     $stderr.puts "#{sender.class.to_s} (#{name}): #{msg}"
   end
+  
+  def BiomineOE.routing_id_for(node)
+    SecureRandom.uuid
+  end
 
+  def BiomineOE.object_id_for(metadata, payload)
+    SecureRandom.uuid
+  end
+
+end
+
+# Simple wildcard matching: allow a single * at the end to match anything,
+# and don't match non-String objects, compare case-insensitively
+
+class String
+  def abboe_wildcard_matches?(item)
+    return false unless item.kind_of?(String)
+    if self.end_with?('*')
+      # wildcard at the end
+      item.downcase.start_with?(self[0..-2].downcase)
+    else
+      # exact case-insensitive
+      self.casecmp(item) == 0
+    end
+  end
 end
