@@ -2,8 +2,15 @@
 $LOAD_PATH << '.' unless $LOAD_PATH.include? '.'
 require 'bmoe_client'
 
-server = ARGV[0] || '127.0.0.1'
-port = (ARGV[1] || 7890).to_i
+server, port = (ARGV[0] || '127.0.0.1:7890'), ARGV[1].to_i
+
+if port <= 0
+  fields = server.split(':')
+  if fields.size >= 2
+    port = fields.pop.to_i
+    server = fields.join(':')
+  end
+end
 
 EventMachine.run do
   c = EventMachine.connect(server, port, BiomineOE::ClientConnection)
