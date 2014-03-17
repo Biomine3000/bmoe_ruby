@@ -24,7 +24,7 @@ module BiomineOE
     'service' => :service
   }
 
-  module NetworkNode
+  module AbstractNetworkNode
     attr_accessor :name
     attr_accessor :routing_id
     attr_accessor :role
@@ -62,7 +62,7 @@ module BiomineOE
   end
 
   class AbstractConnection < EventMachine::Connection
-    include NetworkNode
+    include AbstractNetworkNode
 
     # Called by event machine on connect
     def post_init
@@ -119,6 +119,10 @@ module BiomineOE
       end
     end
 
+    def to_s
+      self.name || self.routing_id
+    end
+
     private
     def log_exception(e, msg = nil, obj = nil)
       bt = e.backtrace.clone
@@ -157,8 +161,7 @@ module BiomineOE
   end
 
   def BiomineOE.log(sender, msg)
-    name = sender.respond_to?(:name) ? sender.name.to_s : ''
-    $stderr.puts "#{sender.class.to_s} (#{name}): #{msg}"
+    $stderr.puts "#{sender.class.to_s} (#{sender}): #{msg}"
   end
   
   def BiomineOE.routing_id_for(node)

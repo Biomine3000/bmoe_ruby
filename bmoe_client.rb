@@ -67,7 +67,7 @@ module BiomineOE
   end
 
   class KeyboardInput < EventMachine::Connection
-    include BiomineOE::NetworkNode
+    include BiomineOE::AbstractNetworkNode
     include EventMachine::Protocols::LineText2
 
     def initialize(server)
