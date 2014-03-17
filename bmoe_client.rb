@@ -28,8 +28,24 @@ module BiomineOE
     end
 
     def receive_object(metadata, payload)
+      event = metadata['event']
+      if event
+        case event
+        when 'ping'
+          pong = { 'event' => 'pong' }
+          oid = metadata['id']
+          pong['in-reply-to'] = oid if oid
+          rid = metadata['routing-id']
+          pong['to'] = rid if rid
+          json = send_object(pong)
+          output "<< PING: #{metadata}"
+          output ">> PONG: #{json}"
+          return
+        else
+        end
+      end
       mimetype = metadata['type'].to_s
-      output "# #{metadata}#{payload ? "(#{payload.size} bytes payload)" : ''}\n"
+      output "<< #{metadata}#{payload ? "(#{payload.size} bytes payload)" : ''}\n"
       return unless mimetype =~ /^text\//
 
       # Character set conversion in Ruby 1.9+
@@ -62,7 +78,7 @@ module BiomineOE
         end
       end
 
-      output "#{metadata['routing-id']}> #{payload}\n"
+      output "<#{metadata['routing-id']}> #{payload}\n"
     end
   end
 
@@ -80,8 +96,8 @@ module BiomineOE
       @server.close_connection_after_writing
     end
 
-    def notice(msg)
-      puts "# #{msg}"
+    def output(msg)
+      puts msg
     end
 
     def send_data(data)
@@ -93,6 +109,10 @@ module BiomineOE
       #return if line.empty?
       field = line[/^\S+/]
       case field
+      when '/ping'
+        json = ping
+        output ">> #{json}"
+        return
       when '/quit'
         @server.close_connection_after_writing
         return
@@ -101,7 +121,7 @@ module BiomineOE
         metadata = { 'event' => 'routing/subscribe',
                      'subscriptions' => line.split[1..-1] }
         json = send_object(metadata)
-        notice json
+        output ">> #{json}"
         return
       else
       end

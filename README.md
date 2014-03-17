@@ -33,5 +33,7 @@ Client features:
 * send `text/plain` messages from terminal with `message` nature
 * use the command `/subscribe *` to establish subscriptions
   (multiple subscription rules can be given as space-separated strings)
-* support `/quit`
+* send pings with the command `/ping`
+* `pong` in reply to `ping`
+* `/quit`
 

@@ -18,10 +18,20 @@ module BiomineOE
         c.connected(self)
         send_routing_announcement
       end
-      EventMachine.add_periodic_timer(300) do
+      EventMachine.add_periodic_timer(290) do
         if @routing_changed
+          # send periodic routing announcements
           send_routing_announcement
           @routing_changed = false
+        end
+        @connections.each do |c|
+          if c.server?
+            # ping servers if we are idle
+            c.ping if c.seconds_since_sent > 240.0
+          else
+            # ping clients if they are idle
+            c.ping if c.seconds_since_received > 240.0
+          end
         end
       end
     end
@@ -200,6 +210,20 @@ module BiomineOE
             # route other routing info only to servers
             return route_object(metadata, payload, client, true)
           end
+        when 'ping'
+          pong = { 'event' => 'pong', 'routing-id' => @routing_id }
+          oid = metadata['id']
+          pong['in-reply-to'] = oid if oid
+          rid = metadata['routing-id']
+          if rid
+            pong['to'] = rid
+            return route_object(pong)
+          else
+            return client.send_object(pong)
+          end
+        when 'pong', 'ping/pong', 'ping/reply'
+          client.log "#{event}: #{metadata}"
+          return
         else
           if client.server?
             client.log "#{event}: #{metadata}"
@@ -253,6 +277,7 @@ module BiomineOE
     end
 
     def receive_object(metadata, payload)
+      @last_received = Time.now
       @server.receive_object(self, metadata, payload) if @server
     end
 

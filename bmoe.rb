@@ -29,6 +29,8 @@ module BiomineOE
     attr_accessor :routing_id
     attr_accessor :role
     attr_accessor :username
+    attr_reader :last_sent
+    attr_reader :last_received
 
     # Return true for servers
     def server?
@@ -37,6 +39,7 @@ module BiomineOE
 
     # Called when an object has been received
     def receive_object(metadata, payload)
+      @last_received = Time.now
     end
 
     # Send an object
@@ -53,11 +56,28 @@ module BiomineOE
       send_data(metadata)
       send_data("\0")
       send_data(payload) if payload
+      @last_sent = Time.now
       metadata
+    end
+
+    # Send a ping
+    def ping
+      metadata = { 'event' => 'ping' }
+      metadata['to'] = @routing_id if @routing_id
+      metadata['id'] = BiomineOE.object_id_for(metadata)
+      send_object(metadata)
     end
 
     def log(msg)
       BiomineOE.log self, msg
+    end
+
+    def seconds_since_sent
+      @last_sent ? (Time.now - @last_sent) : (1.0/0.0)
+    end
+
+    def seconds_since_received
+      @last_received ? (Time.now - @last_received) : (1.0/0.0)
     end
   end
 
@@ -168,7 +188,7 @@ module BiomineOE
     SecureRandom.uuid
   end
 
-  def BiomineOE.object_id_for(metadata, payloadi = nil)
+  def BiomineOE.object_id_for(metadata, payload = nil)
     SecureRandom.uuid
   end
 
