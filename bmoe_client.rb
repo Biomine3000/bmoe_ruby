@@ -92,7 +92,7 @@ module BiomineOE
     end
 
     def unbind
-      notice('Closing connection')
+      output "# Closing connection"
       @server.close_connection_after_writing
     end
 
