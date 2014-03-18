@@ -285,7 +285,7 @@ module BiomineOE
   class NetworkNode < AbstractConnection
     attr_accessor :subscriptions
 
-    # Called by event machine on connect
+    # Called by event machine on _outgoing_ connection
     def connection_completed
       log 'Connected'
       @server.connected(self) if @server

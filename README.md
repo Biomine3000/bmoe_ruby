@@ -29,6 +29,9 @@ Server features:
 * sends `routing/announcement/neighbors` periodically (only if routing or recipients are believed to have changed)
 * sends `ping` periodically when idle
 * responds to `ping`
+* supports _local_ clients with a duplicate `routing-id` – all of them will
+  get the Object targeted to that id (subject to that connection's 
+  subscriptions)
 
 Client features:
 
