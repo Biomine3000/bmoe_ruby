@@ -12,6 +12,7 @@ module BiomineOE
       #self.comm_inactivity_timeout = 10
     end
 
+    # Called by event machine on connect
     def connection_completed
       log 'Connected'
       #self.comm_inactivity_timeout = 0
@@ -38,8 +39,8 @@ module BiomineOE
           rid = metadata['routing-id']
           pong['to'] = rid if rid
           json = send_object(pong)
-          output "<< PING: #{metadata}"
-          output ">> PONG: #{json}"
+          #output "<< PING: #{metadata}"
+          #output ">> PONG: #{json}"
           return
         else
         end
