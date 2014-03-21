@@ -1,6 +1,7 @@
 #   Client Implementation
 
 require 'bmoe'
+require 'base64'
 
 module BiomineOE
 
@@ -131,6 +132,21 @@ module BiomineOE
         json = send_object(metadata)
         output ">> #{json}"
         return
+      when '/json'
+        line.sub!(/^\S+\s*/, '')
+        payload = line.slice!(/[^}]*$/)
+        json = nil
+        begin
+          json = JSON.parse(line)
+          if payload.slice!(/^[Bb](ase)?64:/)
+            payload = Base64.decode64(payload)
+          end
+        rescue Exception => e
+          output "ERROR: #{e}"
+          return
+        end
+        output "<< #{json}#{payload.inspect}"
+        return send_object(json, payload || '')
       else
       end
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil

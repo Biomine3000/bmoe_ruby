@@ -37,11 +37,13 @@ Client features:
 
 * verbose debug output
 * send `text/plain` messages from terminal with `message` nature
+* use the command `/subscribe *` to establish subscriptions
+  (multiple subscription rules can be given as space-separated strings)
 * use `#nature` syntax to add natures to messages (a-z only);
   `#nature`s in the beginning of the message will be stripped from the
   message body
-* use the command `/subscribe *` to establish subscriptions
-  (multiple subscription rules can be given as space-separated strings)
+* send arbitrary objects with `/json {…}payload`; payload can be plain text
+  or base64-encoded arbitrary data prefixed with `base64:`
 * send pings with the command `/ping`
 * `pong` in reply to `ping`
 * `/quit`
