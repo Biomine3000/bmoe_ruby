@@ -131,10 +131,16 @@ module BiomineOE
         line.force_encoding TERMINAL_CHARACTER_SET
         line = line.encode CLIENT_CHARACTER_SET
       end
+      natures = line.split.find_all { |word| word =~ /^#[a-zA-Z]+$/ }
+      line.sub!(/^\s*(#[a-zA-Z]+\s+)*/, '')
+      natures.collect! { |nature| nature[1..-1] }
+      natures << 'message'
+      natures.uniq!
       metadata = {
         'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
-        'natures' => [ 'message' ]
+        'natures' => natures
       }
+      output "<< #{metadata}:#{line}" if natures.size > 1
       send_object(metadata, line)
     end
   end
