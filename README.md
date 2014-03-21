@@ -37,9 +37,9 @@ Client features:
 
 * verbose debug output
 * send `text/plain` messages from terminal with `message` nature
-* use `#nature` syntax to add natures to messages (a-z only)
-  ** `#nature`s in the beginning of the message will be stripped from the
-     message itself
+* use `#nature` syntax to add natures to messages (a-z only);
+  `#nature`s in the beginning of the message will be stripped from the
+  message body
 * use the command `/subscribe *` to establish subscriptions
   (multiple subscription rules can be given as space-separated strings)
 * send pings with the command `/ping`

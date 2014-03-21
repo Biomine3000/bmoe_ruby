@@ -23,7 +23,6 @@ module BiomineOE
         if @routing_changed
           # send periodic routing announcements
           send_routing_announcement
-          @routing_changed = false
         end
         @connections.each do |c|
           if c.server?
@@ -96,9 +95,7 @@ module BiomineOE
         recipient_count += 1
         next if route.include?(rid)
         next if servers_only && !c.server?
-        if c.subscribed_to?(metadata, payload)
-          targets << c
-        end
+        targets << c if c.subscribed_to?(metadata, payload)
       end
       if to && recipient_count < to.size
         # forward object to other servers if there were unreached recipients
@@ -161,6 +158,7 @@ module BiomineOE
                          'route' => [ client.routing_id, @routing_id ] }
         route_object(notification)
         @routing_changed = true
+        send_routing_announcement
       end
       reply
     end
@@ -179,13 +177,15 @@ module BiomineOE
 
     # Send a neighbor announcement to connected servers
     def send_routing_announcement
-      neighbors = []
-      @connections.each { |c| neighbors << c.routing_id if c.subscriptions }
-      return if neighbors.empty?
-      announcement = { 'event' => 'routing/announcement/neighbors',
-                       'neighbors' => neighbors }
-      log "Routing announcement: #{announcement}"
-      route_object(announcement, nil, @routing_id, true)
+      @routing_changed = false
+      neighbors = @connections.find_all { |c| c.subscriptions }
+      unless neighbors.empty?
+        neighbors.collect! { |n| n.routing_id }
+        announcement = { 'event' => 'routing/announcement/neighbors',
+                         'neighbors' => neighbors }
+        log "Routing announcement: #{announcement}"
+        route_object(announcement, nil, @routing_id, true)
+      end
     end
 
     # Called when an object is received
@@ -236,9 +236,8 @@ module BiomineOE
     end
 
     def log_connections_count
-      count = @connections.count
-      sc = 0
-      @connections.each { |c| sc += 1 if c.server? }
+      count = @connections.size
+      sc = @connections.count { |c| c.server? }
       sc = (sc > 0) ? " (#{sc} server#{(sc==1)?'':'s'})" : ''
       log "#{count} connection#{(count==1)?'':'s'} on server#{sc}"
     end
@@ -248,8 +247,6 @@ module BiomineOE
       if @outgoing_server_links[client]
         @connections << client unless @connections.include? client
         send_server_subscription(client)
-      else
-        send_routing_announcement
       end
       log_connections_count
     end
@@ -334,13 +331,10 @@ module BiomineOE
         rule = rule[1..-1] if is_negative_rule
         if rule.start_with? '#'
           natures = msg['natures']
-          if natures.respond_to?(:each)
+          if natures.respond_to?(:any?)
             rule = rule[1..-1]
-            natures.each do |nature|
-              if rule.abboe_wildcard_matches?(nature)
-                pass = !is_negative_rule
-                break
-              end
+            if natures.any? { |nature| rule.abboe_wildcard_matches?(nature) }
+              pass = !is_negative_rule
             end
           end
         elsif rule.start_with? '@'
