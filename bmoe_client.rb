@@ -49,6 +49,13 @@ module BiomineOE
       output "<< #{metadata}#{payload ? "(#{payload.size} bytes payload)" : ''}\n"
       return unless mimetype =~ /^text\//
 
+      if payload.size > 0
+        sha1 = metadata['sha1']
+        if sha1 && sha1 != BiomineOE.sha1(payload)
+          output "<< CHECKSUM MISMATCH:"
+        end
+      end
+
       # Character set conversion in Ruby 1.9+
       if payload.respond_to? :force_encoding
         charset = mimetype[/charset=[^ ]+/].to_s
