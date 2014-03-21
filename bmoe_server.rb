@@ -230,6 +230,16 @@ module BiomineOE
           end
         end
       else
+        if payload.size > 0 && !client.server?
+          sha1 = BiomineOE.sha1(payload)
+          existing_sha1 = metadata['sha1']
+          if existing_sha1
+            # FIXME: Send warning/error on checksum mismatch
+            client.log "CHECKSUM MISMATCH" if existing_sha1 != sha1
+          else
+            metadata['sha1'] = sha1
+          end
+        end
         client.log "#{metadata['type']} (#{payload.size} bytes)"
       end
       route_object(metadata, payload, client)
