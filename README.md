@@ -17,18 +17,18 @@ For example:
 
 Server features:
 
+* incoming client connections
+* incoming and outgoing server-to-server connections
+* automatically reconnect outgoing server links
 * `subscriptions` can be either a single array or nested arrays (arbitrary depth)
 * `to` as either a single `routing-id` or array of multiple ids
 * does not route to nodes already listed in `route`
-* can add all route destinations to `route` before routing (but
-  currently disabled since other servers discard objects that have themselves in `route`)
-* incoming and outgoing server-to-server connections
-* automatically reconnect outgoing servers
+* adds the routing id of other routing servers to `route`
 * generates object ids and routing ids as UUIDs (subject to change)
 * sends `routing/subscribe/notification` and `routing/disconnect`
 * sends `routing/announcement/neighbors` periodically (only if routes or recipients are believed to have changed)
-* sends `ping` periodically when idle
-* responds to `ping`
+* sends `ping` periodically to servers if idle, and to clients who are idle
+* responds to `ping` intended for self, routes `ping` intended for others
 * supports _local_ clients with a duplicate `routing-id` – all of them will
   get the Object targeted to that id (subject to that connection's 
   subscriptions)
@@ -37,14 +37,17 @@ Client features:
 
 * verbose debug output
 * send `text/plain` messages from terminal with `message` nature
-* use the command `/subscribe *` to establish subscriptions
-  (multiple subscription rules can be given as space-separated strings)
-* prefix a line or command with `#nature1 #nature2 …` to add natures
+* use the command `/subscribe rule1 rule2 …` to establish subscriptions (e.g.,
+  `/subscribe *`)
+* prefix a line or command with `#nature1 #nature2 …` to add natures (works
+  with plain text and all object-sending commands except `/ping` and
+  `/subscribe`)
 * send arbitrary objects with `/json {…}payload`; payload can be plain text
   or base64-encoded arbitrary data prefixed with `base64:`
 * send files with `/file filename` (mime-type autodetected)
-* send alternative encodings with `/enc message` or `/encode encoding message`
-* send pings with `/ping` or `/ping target1`
+* send text in alternative encodings with `/encode encoding message` or `/enc
+  message` (the latter chooses randomly)
+* send pings with `/ping` or `/ping target1 target2 …`
 * show ping time when receiving `pong` in response to `/ping`
 * send `pong` in reply to `ping`
 * `/quit`
