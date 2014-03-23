@@ -37,8 +37,11 @@ module BiomineOE
           pong = { 'event' => 'pong' }
           oid = metadata['id']
           pong['in-reply-to'] = oid if oid
-          rid = metadata['routing-id']
-          pong['to'] = rid if rid
+          route = metadata['route']
+          if route.kind_of?(Array)
+            rid = route.first || metadata['routing-id']
+            pong['to'] = rid if rid
+          end
           json = send_object(pong)
           #output "<< PING: #{metadata}"
           #output ">> PONG: #{json}"
@@ -101,7 +104,7 @@ module BiomineOE
     end
 
     def unbind
-      output "# Closing connection"
+      output ">> Closing connection"
       @server.close_connection_after_writing
     end
 
@@ -111,6 +114,47 @@ module BiomineOE
 
     def send_data(data)
       @server.send_data(data)
+    end
+
+    def send_file(line)
+      natures = line.slice!(/\s+#.*$/)
+      if natures
+        natures.gsub!('#', '')
+        natures = natures.split
+      end
+      mimetype, payload = BiomineOE.file_type_and_contents(line)
+      if payload
+        filename = File.basename(line)
+        metadata = { 'type' => mimetype, 'filename' => filename }
+        metadata['natures'] = natures if natures && !natures.empty?
+        output ">> #{metadata}:(#{payload.size} bytes)"
+        send_object(metadata, payload)
+      else
+        output "ERROR: #{line}:#{mimetype}"
+      end
+    end
+
+    def send_json(line)
+      payload = line.slice!(/[^}]*$/)
+      json = nil
+      begin
+        json = JSON.parse(line)
+        if payload.slice!(/^[Bb](ase)?64:/)
+          payload = Base64.decode64(payload)
+        end
+      rescue Exception => e
+        output "ERROR: #{e}"
+        return
+      end
+      output ">> #{json}#{payload.inspect}"
+      send_object(json, payload || '')
+    end
+
+    def send_subscribe(subscriptions)
+      metadata = { 'event' => 'routing/subscribe',
+                   'subscriptions' => (subscriptions || []) }
+      json = send_object(metadata)
+      output ">> #{json}"
     end
 
     def receive_line(line)
@@ -127,43 +171,13 @@ module BiomineOE
         return
       when '/subscribe'
         line.gsub!(',', ' ')
-        metadata = { 'event' => 'routing/subscribe',
-                     'subscriptions' => line.split[1..-1] }
-        json = send_object(metadata)
-        output ">> #{json}"
-        return
+        return send_subscribe(line.split[1..-1])
       when '/json'
         line.sub!(/^\S+\s*/, '')
-        payload = line.slice!(/[^}]*$/)
-        json = nil
-        begin
-          json = JSON.parse(line)
-          if payload.slice!(/^[Bb](ase)?64:/)
-            payload = Base64.decode64(payload)
-          end
-        rescue Exception => e
-          output "ERROR: #{e}"
-          return
-        end
-        output "<< #{json}#{payload.inspect}"
-        return send_object(json, payload || '')
+        return send_json(line)
       when '/file'
         line.sub!(/^\S+\s*/, '')
-        natures = line.slice!(/\s+#.*$/)
-        if natures
-          natures.gsub!('#', '')
-          natures = natures.split
-        end
-        mimetype, payload = BiomineOE.file_type_and_contents(line)
-        if payload
-          metadata = { 'type' => mimetype, 'filename' => line }
-          metadata['natures'] = natures if natures && !natures.empty?
-          output "<< #{metadata}:(#{payload.size} bytes)"
-          send_object(metadata, payload)
-        else
-          output "ERROR: #{line}:#{mimetype}"
-        end
-        return
+        return send_file(line)
       else
       end
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
@@ -180,7 +194,7 @@ module BiomineOE
         'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
         'natures' => natures
       }
-      output "<< #{metadata}:#{line}" if natures.size > 1
+      output ">> #{metadata}:#{line}" if natures.size > 1
       send_object(metadata, line)
     end
   end

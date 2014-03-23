@@ -26,7 +26,6 @@ module BiomineOE
 
   module AbstractNetworkNode
     attr_accessor :name
-    attr_accessor :routing_id
     attr_accessor :role
     attr_accessor :username
     attr_reader :last_sent
@@ -78,6 +77,18 @@ module BiomineOE
 
     def seconds_since_received
       @last_received ? (Time.now - @last_received) : (1.0/0.0)
+    end
+
+    def routing_id
+      unless @routing_id.kind_of?(String) && !@routing_id.empty?
+        # Generate routing id if none exists
+        @routing_id = BiomineOE.routing_id_for(self)
+      end
+      @routing_id
+    end
+
+    def routing_id=(rid)
+      @routing_id = rid
     end
   end
 

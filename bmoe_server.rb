@@ -188,6 +188,18 @@ module BiomineOE
       end
     end
 
+    def directed_elsewhere?(metadata)
+      target = metadata['to']
+      return false unless target
+      return true if (target.kind_of?(String) && target != @routing_id)
+      if target.kind_of?(Array)
+        return false if target.size == 1 && target[0].to_s == @routing_id
+        return nil if target.include?(@routing_id)
+        return true
+      end
+      false
+    end
+
     # Called when an object is received
     def receive_object(client, metadata, payload)
       #route = metadata['route']
@@ -211,23 +223,28 @@ module BiomineOE
             return route_object(metadata, payload, client, true)
           end
         when 'ping'
-          client.log "#{event}: #{metadata}"
-          pong = { 'event' => 'pong', 'routing-id' => @routing_id }
-          oid = metadata['id']
-          pong['in-reply-to'] = oid if oid
-          rid = metadata['routing-id']
-          if rid
-            pong['to'] = rid
-            return route_object(pong)
-          else
-            return client.send_object(pong)
-          end
-        when 'pong', 'ping/pong', 'ping/reply'
-          return
-        else
-          if client.server?
+          directed = directed_elsewhere?(metadata)
+          unless directed
             client.log "#{event}: #{metadata}"
+            pong = { 'event' => 'pong', 'routing-id' => @routing_id }
+            oid = metadata['id']
+            pong['in-reply-to'] = oid if oid
+            route = metadata['route']
+            if route.kind_of?(Array)
+              rid = route.first || metadata['routing-id']
+              if rid
+                pong['to'] = rid
+                return route_object(pong)
+              end
+            end
+            client.send_object(pong)
+            return unless directed.nil?
           end
+          # route pings to other destinations normally
+        when 'pong', 'ping/pong', 'ping/reply'
+          return if directed_elsewhere?(metadata) == false
+        else
+          client.log("#{event}: #{metadata}") if client.server?
         end
       else
         if payload.size > 0 && !client.server?
@@ -318,13 +335,6 @@ module BiomineOE
     def receive_object(metadata, payload)
       @last_received = Time.now
       @server.receive_object(self, metadata, payload) if @server
-    end
-
-    def routing_id
-      unless @routing_id.kind_of?(String) && !@routing_id.empty?
-        @routing_id = BiomineOE.routing_id_for(self)
-      end
-      @routing_id
     end
 
     private
