@@ -73,8 +73,6 @@ module BiomineOE
       end
       from = from.respond_to?(:routing_id) ? from.routing_id : from.to_s
 
-      metadata['routing-id'] ||= from if from
-
       # add ourselves and the immediately connected client to the route
       route = metadata['route']
       if route.kind_of? Array
@@ -141,7 +139,8 @@ module BiomineOE
 
       # reply to subscription
       reply = { 'event' => 'routing/subscribe/reply',
-                'routing-id' => client.routing_id }
+                'routing-id' => client.routing_id,
+                'route' => [ @routing_id ] }
       oid = metadata['id']
       reply['in-reply-to'] = oid if oid
       role = client.role
@@ -226,14 +225,14 @@ module BiomineOE
           directed = directed_elsewhere?(metadata)
           unless directed
             client.log "#{event}: #{metadata}"
-            pong = { 'event' => 'pong', 'routing-id' => @routing_id }
+            pong = { 'event' => 'pong', 'route' => [ @routing_id ] }
             oid = metadata['id']
             pong['in-reply-to'] = oid if oid
             route = metadata['route']
             if route.kind_of?(Array)
-              rid = route.first || metadata['routing-id']
-              if rid
-                pong['to'] = rid
+              sender = route.first.to_s
+              unless sender.empty?
+                pong['to'] = sender
                 return route_object(pong)
               end
             end

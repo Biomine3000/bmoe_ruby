@@ -31,17 +31,15 @@ module BiomineOE
 
     def receive_object(metadata, payload)
       event = metadata['event']
+      route = metadata['route'] || []
+      sender = metadata['route'].first if route.kind_of?(Array)
       if event
         case event
         when 'ping'
           pong = { 'event' => 'pong' }
           oid = metadata['id']
           pong['in-reply-to'] = oid if oid
-          route = metadata['route']
-          if route.kind_of?(Array)
-            rid = route.first || metadata['routing-id']
-            pong['to'] = rid if rid
-          end
+          pong['to'] = sender if sender
           json = send_object(pong)
           #output "<< PING: #{metadata}"
           #output ">> PONG: #{json}"
@@ -90,7 +88,7 @@ module BiomineOE
         end
       end
 
-      output "<#{metadata['routing-id']}> #{payload}\n"
+      output "<#{sender ? sender : '<'}> #{payload}\n"
     end
   end
 
