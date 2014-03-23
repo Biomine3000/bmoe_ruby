@@ -44,7 +44,8 @@ Client features:
   or base64-encoded arbitrary data prefixed with `base64:`
 * send files with `/file filename` (mime-type autodetected)
 * send alternative encodings with `/enc message` or `/encode encoding message`
-* send pings with `/ping`
-* `pong` in reply to `ping`
+* send pings with `/ping` or `/ping target1`
+* show ping time when receiving `pong` in response to `/ping`
+* send `pong` in reply to `ping`
 * `/quit`
 

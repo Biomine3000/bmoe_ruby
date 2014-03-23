@@ -60,11 +60,13 @@ module BiomineOE
     end
 
     # Send a ping
-    def ping
+    def ping(target = nil)
       metadata = { 'event' => 'ping' }
-      metadata['to'] = @routing_id if @routing_id
+      target ||= @routing_id
+      metadata['to'] = target if target
       metadata['id'] = BiomineOE.object_id_for(metadata)
       send_object(metadata)
+      metadata
     end
 
     def log(msg)

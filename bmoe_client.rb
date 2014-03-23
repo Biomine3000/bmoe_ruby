@@ -9,6 +9,8 @@ module BiomineOE
   CLIENT_CHARACTER_SET = 'UTF-8'
 
   class ClientConnection < AbstractConnection
+    attr_accessor :client
+
     def initialize
       #self.comm_inactivity_timeout = 10
     end
@@ -44,6 +46,23 @@ module BiomineOE
           #output "<< PING: #{metadata}"
           #output ">> PONG: #{json}"
           return
+        when 'pong'
+          oid = metadata['in-reply-to']
+          if oid.kind_of?(String)
+            pings = @client.pings || {}
+            out = pings[oid]
+            if out
+              to = out[0]
+              time_sent = out[1]
+              to.delete(sender) if sender && to.kind_of?(Array)
+              unless to.kind_of?(Array) && !to.empty?
+                pings.delete(oid)
+                out[2].cancel
+              end
+              output "<< PONG #{Time.now - time_sent}s (#{oid}#{sender ? " -> #{sender}" : ''})"
+              return
+            end
+          end
         else
         end
       end
@@ -95,10 +114,15 @@ module BiomineOE
   class KeyboardInput < EventMachine::Connection
     include BiomineOE::AbstractNetworkNode
     include EventMachine::Protocols::LineText2
+    attr_reader :pings
+    attr_reader :server
+    attr_accessor :name
 
     def initialize(server)
+      @pings = {}
       @server = server
       @name = 'keyboard'
+      server.client = self
     end
 
     def unbind
@@ -181,6 +205,20 @@ module BiomineOE
       return natures, line
     end
 
+    def send_ping(to = nil, timeout = 30)
+      metadata = ping(to)
+      oid = metadata['id']
+      timer = EventMachine::Timer.new(timeout) do
+        expired = @pings.delete(oid)
+        if expired
+          to = expired.first
+          output "<< PING TIMEOUT (#{oid}#{to ? " -> #{to}" : ''})"
+        end
+      end
+      @pings[oid] = [ to, Time.now, timer ]
+      output ">> #{metadata}"
+    end
+
     def receive_line(line)
       if line.respond_to?(:force_encoding)
         line.force_encoding TERMINAL_CHARACTER_SET
@@ -192,9 +230,11 @@ module BiomineOE
       field = line[/^\S+/]
       case field
       when '/ping'
-        json = ping
-        output ">> #{json}"
-        return
+        line.sub!(/^\S+\s*/, '')
+        target = line.empty? ? [] : line.split()
+        target = target.first if target.size == 1
+        target = nil if target.empty?
+        return send_ping(target)
       when '/quit'
         @server.close_connection_after_writing
         return
