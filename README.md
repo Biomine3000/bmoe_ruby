@@ -44,7 +44,8 @@ Client features:
   message body
 * send arbitrary objects with `/json {…}payload`; payload can be plain text
   or base64-encoded arbitrary data prefixed with `base64:`
-* send pings with the command `/ping`
+* send files with `/file filename #nature1 #nature2 …` (mime-type autodetected)
+* send pings with `/ping`
 * `pong` in reply to `ping`
 * `/quit`
 

@@ -147,6 +147,23 @@ module BiomineOE
         end
         output "<< #{json}#{payload.inspect}"
         return send_object(json, payload || '')
+      when '/file'
+        line.sub!(/^\S+\s*/, '')
+        natures = line.slice!(/\s+#.*$/)
+        if natures
+          natures.gsub!('#', '')
+          natures = natures.split
+        end
+        mimetype, payload = BiomineOE.file_type_and_contents(line)
+        if payload
+          metadata = { 'type' => mimetype, 'filename' => line }
+          metadata['natures'] = natures if natures && !natures.empty?
+          output "<< #{metadata}:(#{payload.size} bytes)"
+          send_object(metadata, payload)
+        else
+          output "ERROR: #{line}:#{mimetype}"
+        end
+        return
       else
       end
       charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
@@ -166,6 +183,26 @@ module BiomineOE
       output "<< #{metadata}:#{line}" if natures.size > 1
       send_object(metadata, line)
     end
+  end
+
+  # Returns mimetype, payload - on error payload will be nil and metadata
+  # is a string describing the error.
+  def BiomineOE.file_type_and_contents(filename)
+    mimetype, payload = nil, nil
+    begin
+      IO.popen(['file', '--brief', '--mime', filename.to_s],
+               :in => :close, :err => :close) do |pipe|
+         mimetype = pipe.read.to_s.strip
+         pipe.close
+         if $?.to_i == 0 && mimetype =~ /^[a-zA-Z-]+\/[^()\/]+$/
+           mimetype.sub!(/;\s*charset=(binary|us-ascii)$/, '')
+           payload = File.open(filename, 'rb') { |f| f.read }
+         end
+      end
+    rescue Exception => e
+      mimetype, payload = e.to_s, nil
+    end
+    return mimetype, payload
   end
 
 end
