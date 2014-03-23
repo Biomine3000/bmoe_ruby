@@ -34,7 +34,7 @@ module BiomineOE
     def receive_object(metadata, payload)
       event = metadata['event']
       route = metadata['route'] || []
-      sender = metadata['route'].first if route.kind_of?(Array)
+      sender = route.first if route.kind_of?(Array)
       if event
         case event
         when 'ping'
