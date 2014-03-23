@@ -48,7 +48,8 @@ Client features:
 * send text in alternative encodings with `/encode encoding message` or `/enc
   message` (the latter chooses randomly)
 * send pings with `/ping` or `/ping target1 target2 …`
-* show ping time when receiving `pong` in response to `/ping`
+* show ping time when receiving `pong` in response to `/ping` (including
+  separate times for multiple targets in the same `ping`)
 * send `pong` in reply to `ping`
 * `/quit`
 
