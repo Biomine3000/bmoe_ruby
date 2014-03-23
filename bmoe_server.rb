@@ -249,7 +249,7 @@ module BiomineOE
       count = @connections.size
       sc = @connections.count { |c| c.server? }
       sc = (sc > 0) ? " (#{sc} server#{(sc==1)?'':'s'})" : ''
-      log "#{count} connection#{(count==1)?'':'s'} on server#{sc}"
+      log "#{count} connection#{(count==1)?'':'s'}#{sc}"
     end
 
     # Called by client on connect
