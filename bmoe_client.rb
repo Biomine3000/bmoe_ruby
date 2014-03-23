@@ -116,17 +116,13 @@ module BiomineOE
       @server.send_data(data)
     end
 
-    def send_file(line)
-      natures = line.slice!(/\s+#.*$/)
-      if natures
-        natures.gsub!('#', '')
-        natures = natures.split
-      end
+    def send_file(line, natures = [])
       mimetype, payload = BiomineOE.file_type_and_contents(line)
       if payload
         filename = File.basename(line)
-        metadata = { 'type' => mimetype, 'filename' => filename }
-        metadata['natures'] = natures if natures && !natures.empty?
+        natures << 'file' unless natures.include?('file')
+        metadata = { 'type' => mimetype, 'filename' => filename,
+                     'natures' => natures }
         output ">> #{metadata}:(#{payload.size} bytes)"
         send_object(metadata, payload)
       else
@@ -134,7 +130,7 @@ module BiomineOE
       end
     end
 
-    def send_json(line)
+    def send_json(line, natures = [])
       payload = line.slice!(/[^}]*$/)
       json = nil
       begin
@@ -146,6 +142,7 @@ module BiomineOE
         output "ERROR: #{e}"
         return
       end
+      json['natures'] ||= natures unless natures.empty?
       output ">> #{json}#{payload.inspect}"
       send_object(json, payload || '')
     end
@@ -157,9 +154,43 @@ module BiomineOE
       output ">> #{json}"
     end
 
+    def random_encoding(line)
+      old_encoding = line.encoding.to_s.downcase
+      retries_remaining = 10
+      encodings = Encoding.list
+      begin
+        encoding = old_encoding
+        while encoding.to_s.downcase == old_encoding
+          encoding = encodings.sample
+        end
+        line = line.encode(encoding)
+        return line
+      rescue Exception => e
+        if retries_remaining > 0
+          retries_remaining -= 1
+          retry
+        end
+        output "ERROR: #{e}"
+      end
+      return nil
+    end
+
+    def natures_from_line(line)
+      nat = line.slice!(/^\s*(#[a-zA-Z]+\s+)*/)
+      natures = nat.split.find_all { |word| word =~ /^#[a-zA-Z]+$/ }
+      natures.collect! { |nature| nature[1..-1] }
+      natures.uniq!
+      return natures, line
+    end
+
     def receive_line(line)
+      if line.respond_to?(:force_encoding)
+        line.force_encoding TERMINAL_CHARACTER_SET
+        line = line.encode CLIENT_CHARACTER_SET
+      end
+      natures, line = natures_from_line(line)
       line.strip!
-      #return if line.empty?
+      return if line.empty? && natures.empty?
       field = line[/^\S+/]
       case field
       when '/ping'
@@ -174,27 +205,32 @@ module BiomineOE
         return send_subscribe(line.split[1..-1])
       when '/json'
         line.sub!(/^\S+\s*/, '')
-        return send_json(line)
+        return send_json(line, natures)
       when '/file'
         line.sub!(/^\S+\s*/, '')
-        return send_file(line)
+        return send_file(line, natures)
+      when '/enc'
+        line.sub!(/^\S+\s*/, '')
+        line = random_encoding(line)
+        return unless line
+      when '/encode'
+        line.sub!(/^\S+\s*/, '')
+        encoding = line.slice!(/^\S+\s*/).to_s.strip
+        begin
+          line = line.encode encoding
+        rescue Exception => e
+          output "ERROR: #{e}"
+          return
+        end
       else
       end
-      charset = (line.respond_to? :force_encoding) ? CLIENT_CHARACTER_SET : nil
-      if line.respond_to? :force_encoding
-        line.force_encoding TERMINAL_CHARACTER_SET
-        line = line.encode CLIENT_CHARACTER_SET
-      end
-      natures = line.split.find_all { |word| word =~ /^#[a-zA-Z]+$/ }
-      line.sub!(/^\s*(#[a-zA-Z]+\s+)*/, '')
-      natures.collect! { |nature| nature[1..-1] }
-      natures << 'message'
-      natures.uniq!
+      natures << 'message' unless natures.include?('message')
+      charset = line.respond_to?(:encoding) ? line.encoding : nil
       metadata = {
         'type' => "text/plain#{charset ?  "; charset=#{charset}" : ''}",
         'natures' => natures
       }
-      output ">> #{metadata}:#{line}" if natures.size > 1
+      output ">> #{metadata}:#{line.inspect}" if natures.size > 1
       send_object(metadata, line)
     end
   end

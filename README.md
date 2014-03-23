@@ -26,7 +26,7 @@ Server features:
 * automatically reconnect outgoing servers
 * generates object ids and routing ids as UUIDs (subject to change)
 * sends `routing/subscribe/notification` and `routing/disconnect`
-* sends `routing/announcement/neighbors` periodically (only if routing or recipients are believed to have changed)
+* sends `routing/announcement/neighbors` periodically (only if routes or recipients are believed to have changed)
 * sends `ping` periodically when idle
 * responds to `ping`
 * supports _local_ clients with a duplicate `routing-id` – all of them will
@@ -39,12 +39,11 @@ Client features:
 * send `text/plain` messages from terminal with `message` nature
 * use the command `/subscribe *` to establish subscriptions
   (multiple subscription rules can be given as space-separated strings)
-* use `#nature` syntax to add natures to messages (a-z only);
-  `#nature`s in the beginning of the message will be stripped from the
-  message body
+* prefix a line or command with `#nature1 #nature2 …` to add natures
 * send arbitrary objects with `/json {…}payload`; payload can be plain text
   or base64-encoded arbitrary data prefixed with `base64:`
-* send files with `/file filename #nature1 #nature2 …` (mime-type autodetected)
+* send files with `/file filename` (mime-type autodetected)
+* send alternative encodings with `/enc message` or `/encode encoding message`
 * send pings with `/ping`
 * `pong` in reply to `ping`
 * `/quit`
